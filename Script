@@ -44,19 +44,35 @@ local placedUnit = nil
 -- LOBBY REMOTE
 -- =========================
 
+-- =========================
+-- LOBBY REMOTE
+-- รองรับ 2 รีโมท
+-- =========================
+
 local function FireLobbyRemote()
 
-	local args = {
-		{
-			{
-				"\226\129\130\150"
-			}
-		}
+	local remotes = {
+		"\226\129\130\148",
+		"\226\129\130\150"
 	}
 
-	DataRemote:FireServer(unpack(args))
-end
+	for _, remoteCode in ipairs(remotes) do
 
+		local args = {
+			{
+				{
+					remoteCode
+				}
+			}
+		}
+
+		pcall(function()
+			DataRemote:FireServer(unpack(args))
+		end)
+
+		task.wait(0.3)
+	end
+end
 -- =========================
 -- TOILET HQ
 -- =========================
