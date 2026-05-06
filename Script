@@ -27,7 +27,7 @@ local placedUnit = nil
 
 local function FireLobbyRemote()
 	local remotes = {
-		"\226\129\130\148",
+		"\226\129\130\150",
 		"\226\129\130\150"
 	}
 
