@@ -4,23 +4,12 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local LocalPlayer = Players.LocalPlayer
-
-local NetworkingContainer =
-	ReplicatedStorage:WaitForChild("NetworkingContainer")
-
-local DataRemote =
-	NetworkingContainer:WaitForChild("DataRemote")
-
--- =========================
--- PLACE IDS
--- =========================
+local DataRemote = ReplicatedStorage
+	:WaitForChild("NetworkingContainer")
+	:WaitForChild("DataRemote")
 
 local PLACE_LOBBY = 13775256536
 local PLACE_TOILET_HQ = 93712201161812
-
--- =========================
--- AUTO PLAY SETTINGS
--- =========================
 
 local UNITS_TO_TRY = {
 	"Laser Cameraman Car",
@@ -33,31 +22,16 @@ local PLACE_POS = Vector3.new(
 	172.82130432128906
 )
 
--- =========================
--- VARIABLES
--- =========================
-
 local placedOnce = false
 local placedUnit = nil
 
--- =========================
--- LOBBY REMOTE
--- =========================
-
--- =========================
--- LOBBY REMOTE
--- รองรับ 2 รีโมท
--- =========================
-
 local function FireLobbyRemote()
-
 	local remotes = {
 		"\226\129\130\148",
 		"\226\129\130\150"
 	}
 
 	for _, remoteCode in ipairs(remotes) do
-
 		local args = {
 			{
 				{
@@ -73,29 +47,74 @@ local function FireLobbyRemote()
 		task.wait(0.3)
 	end
 end
--- =========================
--- TOILET HQ
--- =========================
 
-local function TeleportToToiletBase()
+local function SmartTeleportToLift()
+	local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+	local HRP = Character:WaitForChild("HumanoidRootPart")
 
-	local Character =
-		LocalPlayer.Character
-		or LocalPlayer.CharacterAdded:Wait()
+	local Lifts = workspace:WaitForChild("Lifts")
+	local ToiletHQ = Lifts:WaitForChild("ToiletHQ")
 
-	local HRP =
-		Character:WaitForChild("HumanoidRootPart")
+	local shouldMove = false
 
-	local Base =
-		workspace:WaitForChild("Lifts")
-		:WaitForChild("ToiletHQ")
-		:WaitForChild("Base")
+	local Countdown =
+		ToiletHQ:FindFirstChild("Area")
+		and ToiletHQ.Area:FindFirstChild("StatusGui")
+		and ToiletHQ.Area.StatusGui:FindFirstChild("CountdownTime")
 
-	HRP.CFrame = Base.CFrame + Vector3.new(0,5,0)
+	if not Countdown then
+		shouldMove = true
+	else
+		local text = tostring(Countdown.Text)
+
+		if text == ""
+		or text == "0"
+		or text == "00:00"
+		or text == "Cooldown"
+		then
+			shouldMove = true
+		end
+	end
+
+	local children = Lifts:GetChildren()
+	local Lift15 = children[15]
+
+	if Lift15
+	and Lift15:FindFirstChild("Base")
+	and Lift15.Base:FindFirstChild("StatusGui")
+	and Lift15.Base.StatusGui:FindFirstChild("PlayersCount")
+	then
+		local playerCount = tostring(Lift15.Base.StatusGui.PlayersCount.Text)
+
+		if playerCount == "2/5" then
+			shouldMove = true
+		end
+	end
+
+	if shouldMove then
+		local targets = {
+			children[16],
+			children[15],
+			children[12]
+		}
+
+		for _, lift in ipairs(targets) do
+			if lift and lift:FindFirstChild("Base") then
+				HRP.CFrame = lift.Base.CFrame + Vector3.new(0, 5, 0)
+				print("Teleported To:", lift.Name)
+				task.wait(1)
+			end
+		end
+	else
+		local base = ToiletHQ:FindFirstChild("Base")
+		if base then
+			HRP.CFrame = base.CFrame + Vector3.new(0, 5, 0)
+			print("Teleported To: ToiletHQ")
+		end
+	end
 end
 
 local function FireToiletRemote()
-
 	local args = {
 		{
 			{
@@ -108,12 +127,7 @@ local function FireToiletRemote()
 	DataRemote:FireServer(unpack(args))
 end
 
--- =========================
--- PLACE UNIT
--- =========================
-
 local function PlaceUnit(unitName)
-
 	local args = {
 		{
 			{
@@ -128,12 +142,7 @@ local function PlaceUnit(unitName)
 	DataRemote:FireServer(unpack(args))
 end
 
--- =========================
--- UPGRADE UNIT
--- =========================
-
 local function UpgradeUnit(unitModel)
-
 	local args = {
 		{
 			{
@@ -146,12 +155,7 @@ local function UpgradeUnit(unitModel)
 	DataRemote:FireServer(unpack(args))
 end
 
--- =========================
--- SKIP WAVE
--- =========================
-
 local function SkipWave()
-
 	local args = {
 		{
 			{
@@ -163,24 +167,12 @@ local function SkipWave()
 	DataRemote:FireServer(unpack(args))
 end
 
--- =========================
--- MAIN LOOP
--- =========================
-
 task.spawn(function()
-
 	while task.wait(1) do
-
 		local placeId = game.PlaceId
-
 		print("Current PlaceId:", placeId)
 
-		-- =====================
-		-- LOBBY
-		-- =====================
-
 		if placeId == PLACE_LOBBY then
-
 			print("Lobby Detected")
 
 			placedOnce = false
@@ -188,44 +180,23 @@ task.spawn(function()
 
 			pcall(FireLobbyRemote)
 
-		-- =====================
-		-- TOILET HQ
-		-- =====================
-
 		elseif placeId == PLACE_TOILET_HQ then
-
 			print("ToiletHQ Detected")
 
 			placedOnce = false
 			placedUnit = nil
 
-			pcall(function()
-				TeleportToToiletBase()
-			end)
-
+			pcall(SmartTeleportToLift)
 			task.wait(1)
-
 			pcall(FireToiletRemote)
 
-		-- =====================
-		-- IN GAME
-		-- =====================
-
 		else
-
 			print("In Match")
 
-			local Troops =
-				workspace:FindFirstChild("Troops")
-
-			-- =================
-			-- PLACE
-			-- =================
+			local Troops = workspace:FindFirstChild("Troops")
 
 			if not placedOnce then
-
 				for _, unitName in ipairs(UNITS_TO_TRY) do
-
 					print("Trying Place:", unitName)
 
 					pcall(function()
@@ -235,33 +206,24 @@ task.spawn(function()
 					task.wait(2)
 
 					if Troops then
-
-						local unit =
-							Troops:FindFirstChild(unitName)
+						local unit = Troops:FindFirstChild(unitName)
 
 						if unit then
-
 							print("Place Success:", unitName)
 
 							placedUnit = unit
 							placedOnce = true
-
 							break
-
 						else
 							warn("Place Failed:", unitName)
 						end
+					else
+						warn("ไม่พบ workspace.Troops")
 					end
 				end
 			end
 
-			-- =================
-			-- AUTO UPGRADE
-			-- =================
-
-			if placedUnit
-			and placedUnit.Parent then
-
+			if placedUnit and placedUnit.Parent then
 				print("Upgrading")
 
 				pcall(function()
@@ -269,12 +231,7 @@ task.spawn(function()
 				end)
 			end
 
-			-- =================
-			-- AUTO SKIP
-			-- =================
-
 			print("Skipping Wave")
-
 			pcall(SkipWave)
 		end
 	end
