@@ -1,0 +1,234 @@
+print("SCRIPT LOADED")
+
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local LocalPlayer = Players.LocalPlayer
+
+local NetworkingContainer =
+	ReplicatedStorage:WaitForChild("NetworkingContainer")
+
+local DataRemote =
+	NetworkingContainer:WaitForChild("DataRemote")
+
+local PLACE_LOBBY = 13775256536
+local PLACE_TOILET_HQ = 93712201161812
+
+local UNIT_NAME = "Laser Cameraman Car"
+
+local PLACE_POS = Vector3.new(
+	71.96743774414062,
+	16.776081085205078,
+	172.82130432128906
+)
+
+local placedOnce = false
+local placedUnit = nil
+
+-- =========================
+-- Lobby
+-- =========================
+
+local function FireLobbyRemote()
+
+	local args = {
+		{
+			{
+				"\226\129\130\150"
+			}
+		}
+	}
+
+	DataRemote:FireServer(unpack(args))
+end
+
+-- =========================
+-- ToiletHQ
+-- =========================
+
+local function TeleportToToiletBase()
+
+	local Character =
+		LocalPlayer.Character
+		or LocalPlayer.CharacterAdded:Wait()
+
+	local HRP =
+		Character:WaitForChild("HumanoidRootPart")
+
+	local Base =
+		workspace:WaitForChild("Lifts")
+		:WaitForChild("ToiletHQ")
+		:WaitForChild("Base")
+
+	HRP.CFrame = Base.CFrame + Vector3.new(0,5,0)
+end
+
+local function FireToiletRemote()
+
+	local args = {
+		{
+			{
+				"\226\129\130G",
+				"d97686de-e5b4-4e81-a0da-0f318f196fb9"
+			}
+		}
+	}
+
+	DataRemote:FireServer(unpack(args))
+end
+
+-- =========================
+-- Place Unit
+-- =========================
+
+local function PlaceUnit()
+
+	local args = {
+		{
+			{
+				"\226\129\130\022",
+				UNIT_NAME,
+				PLACE_POS,
+				1
+			}
+		}
+	}
+
+	DataRemote:FireServer(unpack(args))
+end
+
+-- =========================
+-- Upgrade Unit
+-- =========================
+
+local function UpgradeUnit(unitModel)
+
+	local args = {
+		{
+			{
+				"\226\129\130#",
+				unitModel
+			}
+		}
+	}
+
+	DataRemote:FireServer(unpack(args))
+end
+
+-- =========================
+-- Skip Wave
+-- =========================
+
+local function SkipWave()
+
+	local args = {
+		{
+			{
+				"\226\129\130("
+			}
+		}
+	}
+
+	DataRemote:FireServer(unpack(args))
+end
+
+-- =========================
+-- Main Loop
+-- =========================
+
+task.spawn(function()
+
+	while task.wait(1) do
+
+		local placeId = game.PlaceId
+
+		print("Current PlaceId:", placeId)
+
+		-- =====================
+		-- Lobby
+		-- =====================
+
+		if placeId == PLACE_LOBBY then
+
+			print("Lobby Detected")
+
+			placedOnce = false
+			placedUnit = nil
+
+			pcall(FireLobbyRemote)
+
+		-- =====================
+		-- ToiletHQ
+		-- =====================
+
+		elseif placeId == PLACE_TOILET_HQ then
+
+			print("ToiletHQ Detected")
+
+			placedOnce = false
+			placedUnit = nil
+
+			pcall(function()
+				TeleportToToiletBase()
+			end)
+
+			task.wait(1)
+
+			pcall(FireToiletRemote)
+
+		-- =====================
+		-- In Game
+		-- =====================
+
+		else
+
+			print("In Match")
+
+			local Troops =
+				workspace:FindFirstChild("Troops")
+
+			-- วางครั้งเดียว
+			if not placedOnce then
+
+				print("Trying Place Unit")
+
+				pcall(PlaceUnit)
+
+				task.wait(2)
+
+				if Troops then
+
+					local unit =
+						Troops:FindFirstChild(UNIT_NAME)
+
+					if unit then
+
+						print("Place Success")
+
+						placedUnit = unit
+						placedOnce = true
+
+					else
+						warn("หา Unit ไม่เจอใน Troops")
+					end
+				end
+			end
+
+			-- Auto Upgrade
+			if placedUnit
+			and placedUnit.Parent then
+
+				print("Upgrading")
+
+				pcall(function()
+					UpgradeUnit(placedUnit)
+				end)
+			end
+
+			-- Auto Skip
+			print("Skipping Wave")
+
+			pcall(SkipWave)
+		end
+	end
+end)
