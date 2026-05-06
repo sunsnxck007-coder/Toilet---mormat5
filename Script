@@ -9,16 +9,8 @@ local DataRemote = ReplicatedStorage
 	:WaitForChild("NetworkingContainer")
 	:WaitForChild("DataRemote")
 
--- =========================
--- PLACE IDS
--- =========================
-
 local PLACE_LOBBY = 13775256536
 local PLACE_TOILET_HQ = 93712201161812
-
--- =========================
--- AUTO PLAY SETTINGS
--- =========================
 
 local UNITS_TO_TRY = {
 	"Laser Cameraman Car",
@@ -31,10 +23,6 @@ local PLACE_POS = Vector3.new(
 	172.82130432128906
 )
 
--- =========================
--- VARIABLES
--- =========================
-
 local placedOnce = false
 local placedUnit = nil
 
@@ -44,18 +32,15 @@ local placedUnit = nil
 
 local function FireLobbyRemote()
 
-	for i = 1, 5 do
-
-		local args = {
+	local args = {
+		{
 			{
-				{
-					"\226\129\130\148"
-				}
+				"\226\129\130\148"
 			}
 		}
+	}
 
-		print("Firing Lobby Remote:", i)
-
+	for i = 1,5 do
 		pcall(function()
 			DataRemote:FireServer(unpack(args))
 		end)
@@ -78,19 +63,36 @@ local function SmartTeleportToLift()
 		Character:WaitForChild("HumanoidRootPart")
 
 	local Lifts =
-		workspace:WaitForChild("Lifts")
+		workspace:FindFirstChild("Lifts")
+
+	if not Lifts then
+		return
+	end
 
 	local children =
 		Lifts:GetChildren()
 
-	local Lift15 =
-		children[15]
+	local function TP(lift)
+
+		if lift
+		and lift:FindFirstChild("Base") then
+
+			HRP.CFrame =
+				lift.Base.CFrame + Vector3.new(0,5,0)
+
+			print("TP:", lift.Name)
+
+			task.wait(1)
+
+			return true
+		end
+
+		return false
+	end
+
+	local Lift15 = children[15]
 
 	local shouldMove = false
-
-	-- =====================
-	-- PLAYER COUNT CHECK
-	-- =====================
 
 	if Lift15
 	and Lift15:FindFirstChild("Base")
@@ -101,11 +103,192 @@ local function SmartTeleportToLift()
 		local playerCount =
 			tostring(Lift15.Base.StatusGui.PlayersCount.Text)
 
+		print("PlayersCount:", playerCount)
+
 		if playerCount == "2/5" then
 			shouldMove = true
 		end
 	end
 
+	if shouldMove then
+
+		TP(children[16])
+		TP(children[15])
+		TP(children[12])
+
+	else
+
+		local ToiletHQ =
+			Lifts:FindFirstChild("ToiletHQ")
+
+		if ToiletHQ then
+			TP(ToiletHQ)
+		end
+	end
+end
+
+-- =========================
+-- TOILET REMOTE
+-- =========================
+
+local function FireToiletRemote()
+
+	local args = {
+		{
+			{
+				"\226\129\130G",
+				"d97686de-e5b4-4e81-a0da-0f318f196fb9"
+			}
+		}
+	}
+
+	DataRemote:FireServer(unpack(args))
+end
+
+-- =========================
+-- PLACE UNIT
+-- =========================
+
+local function PlaceUnit(unitName)
+
+	local args = {
+		{
+			{
+				"\226\129\130\022",
+				unitName,
+				PLACE_POS,
+				1
+			}
+		}
+	}
+
+	DataRemote:FireServer(unpack(args))
+end
+
+-- =========================
+-- UPGRADE
+-- =========================
+
+local function UpgradeUnit(unitModel)
+
+	local args = {
+		{
+			{
+				"\226\129\130#",
+				unitModel
+			}
+		}
+	}
+
+	DataRemote:FireServer(unpack(args))
+end
+
+-- =========================
+-- SKIP WAVE
+-- =========================
+
+local function SkipWave()
+
+	local args = {
+		{
+			{
+				"\226\129\130("
+			}
+		}
+	}
+
+	DataRemote:FireServer(unpack(args))
+end
+
+-- =========================
+-- MAIN LOOP
+-- =========================
+
+task.spawn(function()
+
+	while task.wait(1) do
+
+		local placeId = game.PlaceId
+
+		print("PlaceId:", placeId)
+
+		-- =====================
+		-- LOBBY
+		-- =====================
+
+		if placeId == PLACE_LOBBY then
+
+			placedOnce = false
+			placedUnit = nil
+
+			pcall(FireLobbyRemote)
+
+		-- =====================
+		-- TOILET HQ
+		-- =====================
+
+		elseif placeId == PLACE_TOILET_HQ then
+
+			placedOnce = false
+			placedUnit = nil
+
+			pcall(SmartTeleportToLift)
+
+			task.wait(1)
+
+			pcall(FireToiletRemote)
+
+		-- =====================
+		-- IN GAME
+		-- =====================
+
+		else
+
+			local Troops =
+				workspace:FindFirstChild("Troops")
+
+			if not placedOnce then
+
+				for _, unitName in ipairs(UNITS_TO_TRY) do
+
+					print("Trying:", unitName)
+
+					pcall(function()
+						PlaceUnit(unitName)
+					end)
+
+					task.wait(2)
+
+					if Troops then
+
+						local unit =
+							Troops:FindFirstChild(unitName)
+
+						if unit then
+
+							print("Placed:", unitName)
+
+							placedUnit = unit
+							placedOnce = true
+
+							break
+						end
+					end
+				end
+			end
+
+			if placedUnit
+			and placedUnit.Parent then
+
+				pcall(function()
+					UpgradeUnit(placedUnit)
+				end)
+			end
+
+			pcall(SkipWave)
+		end
+	end
+end)
 	-- =====================
 	-- TELEPORT
 	-- =====================
