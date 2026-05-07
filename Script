@@ -28,20 +28,55 @@ local PLACE_POS = Vector3.new(
 )
 
 -- =====================
--- LOBBY
+-- LOBBY REMOTE
 -- =====================
 
 local function FireLobbyRemote()
 
-	local args = {
+	local currentPlaceId = game.PlaceId
+
+	-- TRY 150
+	local args1 = {
 		{
 			{
-				"\226\129\130\148"
+				"\226\129\130\150"
 			}
 		}
 	}
 
-	DataRemote:FireServer(unpack(args))
+	print("Trying Remote 150")
+
+	DataRemote:FireServer(unpack(args1))
+
+	local start = tick()
+
+	while tick() - start < 5 do
+
+		task.wait(0.5)
+
+		if game.PlaceId ~= currentPlaceId then
+
+			print("Teleported With 150")
+
+			return
+		end
+	end
+
+	-- FALLBACK 148
+	if game.PlaceId == currentPlaceId then
+
+		print("150 Failed -> Trying 148")
+
+		local args2 = {
+			{
+				{
+					"\226\129\130\148"
+				}
+			}
+		}
+
+		DataRemote:FireServer(unpack(args2))
+	end
 end
 
 -- =====================
