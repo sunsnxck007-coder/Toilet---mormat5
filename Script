@@ -1,20 +1,14 @@
-print("START")
-
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local LocalPlayer = Players.LocalPlayer
 
-local DataRemote =
-	ReplicatedStorage
+local DataRemote = ReplicatedStorage
 	:WaitForChild("NetworkingContainer")
 	:WaitForChild("DataRemote")
 
 local PLACE_LOBBY = 13775256536
 local PLACE_TOILET_HQ = 93712201161812
-
-local placed = false
-local placedUnit = nil
 
 local UNITS = {
 	"Laser Cameraman Car",
@@ -27,16 +21,20 @@ local PLACE_POS = Vector3.new(
 	172.82130432128906
 )
 
--- =====================
+local placed = false
+local placedUnit = nil
+
+print("SCRIPT STARTED")
+
+-- =========================
 -- LOBBY REMOTE
--- =====================
+-- =========================
 
 local function FireLobbyRemote()
 
-	local currentPlaceId = game.PlaceId
+	local oldPlace = game.PlaceId
 
-	-- TRY 150
-	local args1 = {
+	local args150 = {
 		{
 			{
 				"\226\129\130\150"
@@ -44,9 +42,7 @@ local function FireLobbyRemote()
 		}
 	}
 
-	print("Trying Remote 150")
-
-	DataRemote:FireServer(unpack(args1))
+	DataRemote:FireServer(unpack(args150))
 
 	local start = tick()
 
@@ -54,20 +50,15 @@ local function FireLobbyRemote()
 
 		task.wait(0.5)
 
-		if game.PlaceId ~= currentPlaceId then
-
-			print("Teleported With 150")
-
+		if game.PlaceId ~= oldPlace then
+			print("Teleport Success With 150")
 			return
 		end
 	end
 
-	-- FALLBACK 148
-	if game.PlaceId == currentPlaceId then
+	if game.PlaceId == oldPlace then
 
-		print("150 Failed -> Trying 148")
-
-		local args2 = {
+		local args148 = {
 			{
 				{
 					"\226\129\130\148"
@@ -75,13 +66,81 @@ local function FireLobbyRemote()
 			}
 		}
 
-		DataRemote:FireServer(unpack(args2))
+		print("Fallback To 148")
+
+		DataRemote:FireServer(unpack(args148))
 	end
 end
 
--- =====================
+-- =========================
+-- TELEPORT
+-- =========================
+
+local function SmartTeleport()
+
+	local char =
+		LocalPlayer.Character
+		or LocalPlayer.CharacterAdded:Wait()
+
+	local hrp =
+		char:WaitForChild("HumanoidRootPart")
+
+	local Lifts = workspace:FindFirstChild("Lifts")
+
+	if not Lifts then
+		return
+	end
+
+	local list = Lifts:GetChildren()
+
+	local move = false
+
+	pcall(function()
+
+		local txt =
+			list[15].Base.StatusGui.PlayersCount.Text
+
+		print("Players:", txt)
+
+		if txt == "2/5" then
+			move = true
+		end
+	end)
+
+	local targets
+
+	if move then
+
+		targets = {
+			list[16],
+			list[15],
+			list[12]
+		}
+
+	else
+
+		targets = {
+			Lifts:FindFirstChild("ToiletHQ")
+		}
+	end
+
+	for _, v in ipairs(targets) do
+
+		if v and v:FindFirstChild("Base") then
+
+			hrp.CFrame =
+				v.Base.CFrame + Vector3.new(0,5,0)
+
+			print("TP:", v.Name)
+
+			task.wait(1)
+		end
+	end
+end
+
+-- =========================
 -- PLACE
--- =====================
+-- =========================
 
 local function PlaceUnit(name)
 
@@ -99,13 +158,115 @@ local function PlaceUnit(name)
 	DataRemote:FireServer(unpack(args))
 end
 
--- =====================
+-- =========================
 -- UPGRADE
--- =====================
+-- =========================
 
 local function Upgrade(unit)
 
 	local args = {
+		{
+			{
+				"\226\129\130#",
+				unit
+			}
+		}
+	}
+
+	DataRemote:FireServer(unpack(args))
+end
+
+-- =========================
+-- SKIP
+-- =========================
+
+local function Skip()
+
+	local args = {
+		{
+			{
+				"\226\129\130("
+			}
+		}
+	}
+
+	DataRemote:FireServer(unpack(args))
+end
+
+-- =========================
+-- MAIN LOOP
+-- =========================
+
+while true do
+
+	task.wait(1)
+
+	local placeId = game.PlaceId
+
+	print("PLACE:", placeId)
+
+	-- LOBBY
+	if placeId == PLACE_LOBBY then
+
+		placed = false
+		placedUnit = nil
+
+		pcall(FireLobbyRemote)
+
+	-- TOILET
+	elseif placeId == PLACE_TOILET_HQ then
+
+		placed = false
+		placedUnit = nil
+
+		pcall(SmartTeleport)
+
+	-- GAME
+	else
+
+		local Troops =
+			workspace:FindFirstChild("Troops")
+
+		if not placed then
+
+			for _, name in ipairs(UNITS) do
+
+				print("TRY PLACE:", name)
+
+				pcall(function()
+					PlaceUnit(name)
+				end)
+
+				task.wait(2)
+
+				if Troops then
+
+					local unit =
+						Troops:FindFirstChild(name)
+
+					if unit then
+
+						print("PLACED:", name)
+
+						placed = true
+						placedUnit = unit
+
+						break
+					end
+				end
+			end
+		end
+
+		if placedUnit and placedUnit.Parent then
+
+			pcall(function()
+				Upgrade(placedUnit)
+			end)
+		end
+
+		pcall(Skip)
+	end
+end	local args = {
 		{
 			{
 				"\226\129\130#",
